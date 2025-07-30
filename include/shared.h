@@ -7,6 +7,8 @@
 
 #define NULLABLE
 
+#define TEXT_EDITOR "micro"
+
 typedef struct {
   int width;
   int height;
@@ -26,4 +28,4 @@ char *read_file_to_string(const char *filename);
 
 char *str_fmt_heap(const char *fmt, ...);
 
-char *str_cpy_heap(const char *fmt, ...);
+char *str_cpy_heap(const char *str, ...);

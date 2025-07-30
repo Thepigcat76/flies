@@ -16,8 +16,6 @@
 
 #define NULLABLE
 
-#define TEXT_EDITOR "micro"
-
 int main(int argc, char **argv) {
   alloc_init();
 
@@ -129,12 +127,7 @@ int main(int argc, char **argv) {
         size_t len = strlen(app->input);
         if (len == 0) {
           DirEntry *entry = &app->dir_entries[app->dir_index];
-          if (entry->type == DET_DIR) {
-            app_open_dir(app, entry);
-          } else {
-            system(str_fmt(TEXT_EDITOR " %s/%s", app->wd, entry->name));
-            app->update_rendering = true;
-          }
+          app_open_entry(app, entry);
         } else {
           app_run_cmd(app);
         }
@@ -175,7 +168,7 @@ int main(int argc, char **argv) {
         goto end;
       }
       default: {
-        if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == ':') {
+        if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == ':' || c == '.' || c == '?' || (c >= '0' && c <= '9')) {
           strcat(app->input, str_fmt("%c", c));
         } else if (c == ' ') {
           strcat(app->input, " ");

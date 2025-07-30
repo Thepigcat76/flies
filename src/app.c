@@ -1,6 +1,7 @@
 #include "../include/app.h"
 #include "../include/array.h"
 #include "../include/term.h"
+#include <stdio.h>
 #include <string.h>
 
 App APP;
@@ -80,6 +81,7 @@ void app_render(App *app) {
 }
 
 void app_run_cmd(App *app) {
+  size_t nf_cmd_len = sizeof(":nf");
   if (str_eq(app->input, ":q")) {
     app_exit(app);
   } else if (str_eq(app->input, ":c")) {
@@ -88,6 +90,14 @@ void app_run_cmd(App *app) {
     app_paste_file(app, app->wd);
   } else if (str_eq(app->input, ":d")) {
     app_delete_file(app, &app->dir_entries[app->dir_index]);
+  } else if (strncmp(app->input, ":nf", nf_cmd_len - 1) == 0) {
+    DirEntry entry = {0};
+    strcpy(entry.name, app->input + nf_cmd_len);
+    char *ext = strrchr(entry.name, '.') + 1;
+    entry.ext = ext;
+    entry.type = DET_FILE;
+    app_new_file(app, entry);
+    app_open_entry(app, &entry);
   } else {
     app_set_debug_msg(app, str_fmt("Unknown command: %s", app->input));
   }
@@ -204,7 +214,26 @@ void app_undo(App *app) {
   // app_set_debug_msg(app, str_fmt("Undo action: %d", action.type));
 }
 
+void app_new_file(App *app, DirEntry entry) {
+  FILE *f = fopen(str_fmt("%s/%s", app->wd, entry.name), "w");
+  if (f) {
+    fclose(f);
+  } else {
+    perror("fopen");
+  }
+  app_refresh(app);
+}
+
 void app_exit(App *app) {
   terminal_disable_raw_mode();
   exit(0);
+}
+
+void app_open_entry(App *app, const DirEntry *entry) {
+  if (entry->type == DET_DIR) {
+    app_open_dir(app, entry);
+  } else {
+    system(str_fmt(TEXT_EDITOR " %s/%s", app->wd, entry->name));
+    app->update_rendering = true;
+  }
 }
