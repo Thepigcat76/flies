@@ -2,6 +2,8 @@
 
 #include "dir.h"
 #include "shared.h"
+#include "term.h"
+#include "history.h"
 
 typedef struct {
   char wd[1024];
@@ -12,6 +14,10 @@ typedef struct {
   size_t dir_index;
   size_t prev_len;
   Dimensions terminal_dimensions;
+  char input[256];
+  char debug_message[256];
+  bool cut;
+  History action_history;
 } App;
 
 extern App APP;
@@ -21,3 +27,19 @@ void app_find_entries(App *app);
 void app_open_dir(App *app, const DirEntry *entry);
 
 void app_render(App *app);
+
+void app_run_cmd(App *app);
+
+void app_exit(App *app);
+
+void app_set_debug_msg(App *app, const char *debug_message);
+
+void app_refresh(App *app);
+
+void app_copy_file(App *app, const DirEntry *entry);
+
+void app_paste_file(App *app, const char *dir);
+
+void app_delete_file(App *app, const DirEntry *entry);
+
+void app_undo(App *app);

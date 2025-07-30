@@ -1,6 +1,5 @@
 // To build the project, compile this file with a compiler of your choice and run the compiled executable.
 // The project also requires the gurd header, which can be found at <https://github.com/Thepigcat76/gurd/blob/main/gurd.h>
-//
 
 #include "gurd.h"
 
@@ -23,7 +22,7 @@ typedef struct {
 static BuildOptions OPTS = {.compiler = "clang",
                             .debug = true,
                             .release = false,
-                            .std = "c23",
+                            .std = "gnu23",
                             .target = TARGET_LINUX,
                             .out_dir = "./build/",
                             .out_name = "flies"};
@@ -35,7 +34,7 @@ int main(int argc, char **argv) {
   char *flags = build_flags(&OPTS);
   char *out_name = build_name(OPTS.out_name, OPTS.target);
 
-  build_dir(OPTS.out_dir);
+  make_dir(OPTS.out_dir);
   int code = compile("%s %s %s %s -o %s%s", OPTS.compiler, files, libraries, flags, OPTS.out_dir, out_name);
   if (code != 0) {
     fprintf(stderr, "Failed to compile the program\n");

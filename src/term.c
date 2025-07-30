@@ -18,7 +18,8 @@ void terminal_clear() {
 void terminal_enable_raw_mode() {
   struct termios term;
   tcgetattr(STDIN_FILENO, &term);
-  term.c_lflag &= ~(ICANON | ECHO); // Disable canonical mode and echo
+  term.c_lflag &= ~(ECHO | ICANON | ISIG); // raw mode
+  term.c_iflag &= ~(IXON);
   tcsetattr(STDIN_FILENO, TCSANOW, &term);
 }
 
@@ -39,12 +40,6 @@ void terminal_clear_last_lines(size_t n) {
     printf("\033[F");  // move cursor up one line
     printf("\033[2K"); // clear entire line
   }
-}
-
-void terminal_handle_sigint(int sig) {
-  (void)sig;
-  terminal_disable_raw_mode();
-  exit(0);
 }
 
 void terminal_handle_sigwinch(int sig) {

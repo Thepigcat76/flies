@@ -91,3 +91,16 @@ void _internal_array_free(void *arr) {
   _InternalArrayHeader *h = ((_InternalArrayHeader *)arr) - 1;
   h->allocator->dealloc(h);
 }
+
+void _internal_array_set(void **arr_ptr, void *item, size_t index, size_t item_size) {
+  void *arr = *arr_ptr;
+  _InternalArrayHeader *h = ((_InternalArrayHeader *)arr) - 1;
+
+#ifdef DEBUG_BUILD
+  if (index >= h->len) {
+    PANIC_FMT("Index %zu out of bounds for array of length %zu", index, h->len);
+  }
+#endif
+
+  memcpy((char *)arr + index * item_size, item, item_size);
+}

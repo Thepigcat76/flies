@@ -23,11 +23,14 @@ int main(int argc, char **argv) {
 
   struct winsize w;
   ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
-  APP = (App) {.dir_entries = array_new_capacity(DirEntry, 256, &HEAP_ALLOCATOR),
-             .prev_dirs = array_new_capacity(DirEntry, 256, &HEAP_ALLOCATOR),
-             .initial = true,
-             .prev_len = 0,
-             .terminal_dimensions = {.width = w.ws_col, .height = w.ws_row}};
+  APP = (App){.dir_entries = array_new_capacity(DirEntry, 256, &HEAP_ALLOCATOR),
+              .prev_dirs = array_new_capacity(DirEntry, 256, &HEAP_ALLOCATOR),
+              .initial = true,
+              .prev_len = 0,
+              .terminal_dimensions = {.width = w.ws_col, .height = w.ws_row},
+              .input = "",
+              .debug_message = "",
+              .action_history = history_new()};
 
   App *app = &APP;
 
@@ -53,7 +56,6 @@ int main(int argc, char **argv) {
     app_find_entries(app);
   }
 
-  signal(SIGINT, terminal_handle_sigint);
   signal(SIGWINCH, terminal_handle_sigwinch);
   signal(SIGSEGV, terminal_handle_sigsegv);
 
@@ -122,24 +124,71 @@ int main(int argc, char **argv) {
         }
         break;
       }
+      // ENTER
       case '\n': {
-        DirEntry *entry = &app->dir_entries[app->dir_index];
-        if (entry->type == DET_DIR) {
-          app_open_dir(app, entry);
+        size_t len = strlen(app->input);
+        if (len == 0) {
+          DirEntry *entry = &app->dir_entries[app->dir_index];
+          if (entry->type == DET_DIR) {
+            app_open_dir(app, entry);
+          } else {
+            system(str_fmt(TEXT_EDITOR " %s/%s", app->wd, entry->name));
+            app->update_rendering = true;
+          }
         } else {
-          system(str_fmt(TEXT_EDITOR " %s/%s", app->wd, entry->name));
-          app->update_rendering = true;
+          app_run_cmd(app);
         }
         break;
       }
-      case 'q':
+      // CTRL + C
+      case 3: {
+        const DirEntry *dir_entry = &app->dir_entries[app->dir_index];
+        app_copy_file(app, dir_entry);
+        break;
+      }
+      // CTRL + D
+      case 4: {
+        const DirEntry *dir_entry = &app->dir_entries[app->dir_index];
+        app_delete_file(app, dir_entry);
+        break;
+      }
+      // CTRL + V
+      case 22: {
+        const char *dir = app->wd;
+        app_paste_file(app, dir);
+        break;
+      }
+      // CTRL + X
+      case 24: {
+        const DirEntry *dir_entry = &app->dir_entries[app->dir_index];
+        app->cut = true;
+        app_copy_file(app, dir_entry);
+        break;
+      }
+      // CTRL + Z
+      case 26: {
+        app_undo(app);
+        break;
+      }
+      // CTRL + Q
+      case 0x11: {
         goto end;
-      default:
+      }
+      default: {
+        if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == ':') {
+          strcat(app->input, str_fmt("%c", c));
+        } else if (c == ' ') {
+          strcat(app->input, " ");
+        } else if (c == 127 || c == 8) {
+          size_t len = strlen(app->input);
+          app->input[len - 1] = '\0';
+        }
         app->update_rendering = true;
         break;
+      }
       }
     }
   }
 end:
-  terminal_disable_raw_mode();
+  app_exit(app);
 }

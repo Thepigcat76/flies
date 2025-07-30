@@ -16,8 +16,6 @@ void terminal_disable_raw_mode();
 
 void terminal_clear_last_lines(size_t n);
 
-void terminal_handle_sigint(int sig);
-
 void terminal_handle_sigwinch(int sig);
 
 void terminal_handle_sigsegv(int sig);
