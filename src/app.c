@@ -170,8 +170,8 @@ void app_paste_file(App *app, const char *dir) {
         remove(pasted_file_path);
         app->cut = false;
         history_push(&app->action_history,
-                     action_move(str_fmt_heap("%s/%s", dir, file_name),
-                                 str_cpy_heap(pasted_file_path)));
+                     action_move(str_cpy_heap(pasted_file_path),
+                                 str_fmt_heap("%s/%s", dir, file_name)));
       } else {
         history_push(&app->action_history,
                      action_create(str_fmt_heap("%s/%s", dir, file_name)));
@@ -198,6 +198,21 @@ void app_undo(App *app) {
   char *action_name;
   switch (action.type) {
   case ACTION_MOVE: {
+    const char *old_path = action.var.move_action.old_path;
+    const char *new_path = action.var.move_action.new_path;
+    char *file_content = read_file_to_string(new_path);
+    FILE *f = fopen(old_path, "w");
+    if (f) {
+      fprintf(f, "%s", file_content);
+      fclose(f);
+      free(file_content);
+      remove(new_path);
+      app_refresh(app);
+      app_set_debug_msg(
+          app, str_fmt("Undid action MOVE from %s to %s", old_path, new_path));
+    } else {
+      perror("fopen");
+    }
     break;
   }
   case ACTION_CREATE: {
@@ -237,9 +252,7 @@ void app_new_file(App *app, DirEntry entry) {
   app_refresh(app);
 }
 
-void app_new_dir(App *app, DirEntry entry) {
-  mkdir(entry.path, 0777);
-}
+void app_new_dir(App *app, DirEntry entry) { mkdir(entry.path, 0777); }
 
 void app_exit(App *app) {
   terminal_disable_raw_mode();
