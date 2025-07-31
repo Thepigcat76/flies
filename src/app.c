@@ -102,12 +102,10 @@ void app_run_cmd(App *app) {
         dir_entry_new(str_fmt("%s/%s", app->wd, app->input + nf_cmd_len));
     app_new_file(app, entry);
     app_open_entry(app, &entry);
-  } else if (strncmp(app->input, ND_CMD, nd_cmd_len)) {
+  } else if (strncmp(app->input, ND_CMD, nd_cmd_len - 1) == 0) {
     char *path = str_fmt("%s/%s", app->wd, app->input + nd_cmd_len);
     DirEntry entry = dir_entry_new(path);
     entry.type = DET_DIR;
-    printfn("Entry: %s", entry.path);
-    exit(0);
     app_new_dir(app, entry);
     app_open_entry(app, &entry);
   } else {

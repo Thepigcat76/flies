@@ -1,5 +1,6 @@
 #include "../include/app.h"
 #include "../include/array.h"
+#include "../include/config.h"
 #include "../include/shared.h"
 #include "../include/term.h"
 #include <dirent.h>
@@ -18,6 +19,15 @@
 
 int main(int argc, char **argv) {
   alloc_init();
+
+  char *config_file = read_file_to_string("flies.cfg");
+
+  AppConfig config;
+  app_config_read(&config, config_file);
+  printfn("Text editor: %s", config.text_editor);
+  printfn("Rows: %d", config.max_rows);
+  printfn("Show hidden dirs: %s", config.show_hidden_dirs ? "true" : "false");
+  exit(0);
 
   struct winsize w;
   ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
