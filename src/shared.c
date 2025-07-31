@@ -87,6 +87,26 @@ char *read_file_to_string(const char *filename) {
   return buffer;
 }
 
+void stack_trace_print(void) {
+#if defined (TARGET_LINUX) && defined (DEBUG_BUILD)
+  void *buffer[100];
+  int nptrs = backtrace(buffer, 100);
+  char **symbols = backtrace_symbols(buffer, nptrs);
+
+  if (symbols == NULL) {
+    perror("backtrace_symbols");
+    exit(EXIT_FAILURE);
+  }
+
+  printf("Stack trace (%d frames):\n", nptrs);
+  for (int i = 0; i < nptrs; i++) {
+    printf("%s\n", symbols[i]);
+  }
+
+  free(symbols);
+#endif
+}
+
 char *str_cpy_heap(const char *str) {
   char *heap_str = malloc(strlen(str) + 1);
   strcpy(heap_str, str);

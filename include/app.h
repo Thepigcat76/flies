@@ -46,4 +46,6 @@ void app_undo(App *app);
 
 void app_new_file(App *app, DirEntry entry);
 
+void app_new_dir(App *app, DirEntry entry);
+
 void app_open_entry(App *app, const DirEntry *entry);

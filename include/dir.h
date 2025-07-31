@@ -9,14 +9,15 @@ typedef enum {
 } DirEntryType;
 
 typedef struct {
-  char name[512];
+  char path[512];
+  char name[128];
+  char ext[16];
   DirEntryType type;
-  NULLABLE char *ext;
 } DirEntry;
 
 extern DirEntry PREV_DIR;
 
-DirEntry dir_entry_new(const char *path, struct dirent *entry);
+DirEntry dir_entry_new(const char *entry_path);
 
 void dir_entry_render(const DirEntry *dir_entry, bool selected);
 

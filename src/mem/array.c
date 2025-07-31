@@ -1,4 +1,5 @@
 #include "../../include/array.h"
+#include "../../include/shared.h"
 #include <string.h>
 
 void *_internal_array_new(size_t capacity, size_t item_size, Allocator *allocator) {
@@ -98,7 +99,7 @@ void _internal_array_set(void **arr_ptr, void *item, size_t index, size_t item_s
 
 #ifdef DEBUG_BUILD
   if (index >= h->len) {
-    PANIC_FMT("Index %zu out of bounds for array of length %zu", index, h->len);
+    PANIC("Index %zu out of bounds for array of length %zu", index, h->len);
   }
 #endif
 

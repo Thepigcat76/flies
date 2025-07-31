@@ -3,6 +3,7 @@
 #include "../include/term.h"
 #include <stdio.h>
 #include <string.h>
+#include <sys/stat.h>
 
 App APP;
 
@@ -19,7 +20,8 @@ void app_find_entries(App *app) {
   }
 
   while ((entry = readdir(dp)) != NULL) {
-    array_add(app->dir_entries, dir_entry_new(app->wd, entry));
+    char *path = str_fmt("%s/%s", app->wd, entry->d_name);
+    array_add(app->dir_entries, dir_entry_new(path));
   }
 
   DirEntry *new_dir_entries = sort_dirs_alphabetic(app->dir_entries);
@@ -47,8 +49,7 @@ void app_open_dir(App *app, const DirEntry *entry) {
   if (strcmp(entry->name, "..") == 0) {
     char *last_slash = strrchr(app->wd, '/');
     if (last_slash != NULL) {
-      DirEntry entry = {.type = DET_FILE, .ext = NULL};
-      strcpy(entry.name, app->wd);
+      DirEntry entry = dir_entry_new(app->wd);
       array_add(app->prev_dirs, entry);
       *last_slash = '\0';
     }
@@ -71,7 +72,9 @@ void app_render(App *app) {
   size_t len = array_len(app->dir_entries);
   terminal_clear();
 
+#ifdef DEBUG_BUILD
   printf("DEBUG INFO: %s\n", app->debug_message);
+#endif
 
   for (size_t i = 0; i < len; i++) {
     dir_entry_render(&app->dir_entries[i], app->dir_index == i);
@@ -80,8 +83,12 @@ void app_render(App *app) {
   app->update_rendering = false;
 }
 
+constexpr char NF_CMD[] = ":nf";
+constexpr char ND_CMD[] = ":nd";
+
 void app_run_cmd(App *app) {
-  size_t nf_cmd_len = sizeof(":nf");
+  size_t nf_cmd_len = sizeof(NF_CMD);
+  size_t nd_cmd_len = sizeof(ND_CMD);
   if (str_eq(app->input, ":q")) {
     app_exit(app);
   } else if (str_eq(app->input, ":c")) {
@@ -90,13 +97,18 @@ void app_run_cmd(App *app) {
     app_paste_file(app, app->wd);
   } else if (str_eq(app->input, ":d")) {
     app_delete_file(app, &app->dir_entries[app->dir_index]);
-  } else if (strncmp(app->input, ":nf", nf_cmd_len - 1) == 0) {
-    DirEntry entry = {0};
-    strcpy(entry.name, app->input + nf_cmd_len);
-    char *ext = strrchr(entry.name, '.') + 1;
-    entry.ext = ext;
-    entry.type = DET_FILE;
+  } else if (strncmp(app->input, NF_CMD, nf_cmd_len - 1) == 0) {
+    DirEntry entry =
+        dir_entry_new(str_fmt("%s/%s", app->wd, app->input + nf_cmd_len));
     app_new_file(app, entry);
+    app_open_entry(app, &entry);
+  } else if (strncmp(app->input, ND_CMD, nd_cmd_len)) {
+    char *path = str_fmt("%s/%s", app->wd, app->input + nd_cmd_len);
+    DirEntry entry = dir_entry_new(path);
+    entry.type = DET_DIR;
+    printfn("Entry: %s", entry.path);
+    exit(0);
+    app_new_dir(app, entry);
     app_open_entry(app, &entry);
   } else {
     app_set_debug_msg(app, str_fmt("Unknown command: %s", app->input));
@@ -197,11 +209,12 @@ void app_undo(App *app) {
   }
   case ACTION_DELETE: {
     const char *path = action.var.delete_action.old_path;
-    const char *file_content = action.var.delete_action.file_content;
+    char *file_content = action.var.delete_action.file_content;
     FILE *file = fopen(path, "w");
     if (file) {
       fprintf(file, "%s", file_content);
       fclose(file);
+      free(file_content);
       app_set_debug_msg(app, str_fmt("Undid action DELETE at %s", path));
     } else {
       perror("fopen");
@@ -222,6 +235,10 @@ void app_new_file(App *app, DirEntry entry) {
     perror("fopen");
   }
   app_refresh(app);
+}
+
+void app_new_dir(App *app, DirEntry entry) {
+  mkdir(entry.path, 0777);
 }
 
 void app_exit(App *app) {

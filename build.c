@@ -28,6 +28,13 @@ static BuildOptions OPTS = {.compiler = "clang",
                             .out_name = "flies"};
 
 int main(int argc, char **argv) {
+  if (argc >= 2) {
+    if (STR_CMP_OR(argv[1], "-r", "--release")) {
+      OPTS.release = true;
+      OPTS.debug = false;
+    }
+  }
+
   char *compiler = build_compiler(OPTS.compiler, OPTS.target);
   char *files = collect_src_files("./src/");
   char *libraries = link_libs(OPTS.libraries);
@@ -47,7 +54,7 @@ int main(int argc, char **argv) {
     } else if (STR_CMP_OR(argv[1], "d", "dbg")) {
       dbg(OPTS.out_dir, out_name, OPTS.debug);
       return 0;
-    } else {
+    } else if (STR_CMP_OR(argv[1], "-r", "--release")) {} else {
       fprintf(stderr, "[Error]: Invalid first arg: %s\n", argv[1]);
       return 1;
     }
@@ -75,6 +82,7 @@ static char *build_flags(void *_opts) {
 
   if (opts->debug) {
     strcat(_internal_flags_buf, "-g ");
+    strcat(_internal_flags_buf, "-DDEBUG_BUILD ");
   } else if (opts->release) {
     strcat(_internal_flags_buf, "-O3 ");
   }

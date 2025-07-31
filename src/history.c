@@ -29,7 +29,7 @@ Action action_create(const char *path) {
   return (Action){.type = ACTION_CREATE, .var = {.create_action = {.path = path}}};
 }
 
-Action action_delete(const char *old_path, const char *file_content) {
+Action action_delete(const char *old_path, char *file_content) {
   return (Action){.type = ACTION_DELETE,
                   .var = {.delete_action = {.old_path = old_path,
                                             .file_content = file_content}}};
