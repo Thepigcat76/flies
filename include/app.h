@@ -4,6 +4,7 @@
 #include "shared.h"
 #include "term.h"
 #include "history.h"
+#include "config.h"
 
 typedef struct {
   char wd[1024];
@@ -18,6 +19,7 @@ typedef struct {
   char debug_message[256];
   bool cut;
   History action_history;
+  AppConfig config;
 } App;
 
 extern App APP;
@@ -49,3 +51,5 @@ void app_new_file(App *app, DirEntry entry);
 void app_new_dir(App *app, DirEntry entry);
 
 void app_open_entry(App *app, const DirEntry *entry);
+
+AppConfig app_config_load(void);

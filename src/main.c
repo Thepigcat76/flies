@@ -20,14 +20,7 @@
 int main(int argc, char **argv) {
   alloc_init();
 
-  char *config_file = read_file_to_string("flies.cfg");
-
-  AppConfig config;
-  app_config_read(&config, config_file);
-  printfn("Text editor: %s", config.text_editor);
-  printfn("Rows: %d", config.max_rows);
-  printfn("Show hidden dirs: %s", config.show_hidden_dirs ? "true" : "false");
-  exit(0);
+  AppConfig config = app_config_load();
 
   struct winsize w;
   ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
@@ -38,7 +31,8 @@ int main(int argc, char **argv) {
               .terminal_dimensions = {.width = w.ws_col, .height = w.ws_row},
               .input = "",
               .debug_message = "",
-              .action_history = history_new()};
+              .action_history = history_new(),
+              .config = config};
 
   App *app = &APP;
 
@@ -178,7 +172,8 @@ int main(int argc, char **argv) {
         goto end;
       }
       default: {
-        if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == ':' || c == '.' || c == '?' || (c >= '0' && c <= '9')) {
+        if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == ':' ||
+            c == '.' || c == '?' || (c >= '0' && c <= '9')) {
           strcat(app->input, str_fmt("%c", c));
         } else if (c == ' ') {
           strcat(app->input, " ");

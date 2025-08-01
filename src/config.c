@@ -1,6 +1,7 @@
 #include "../include/alloc.h"
 #include "../include/array.h"
 #include "../include/shared.h"
+#include <stddef.h>
 #include <stdlib.h>
 
 typedef struct {
@@ -142,7 +143,7 @@ static ConfigToken *config_tokenize(const char *config_file_content,
       PANIC("Invalid char: %c", *lexer.cur_char);
     }
     array_add(tokens, token);
-    //tok_print(&token);
+    // tok_print(&token);
   }
   array_add(tokens, (ConfigToken){.type = TOKEN_EOF});
   array_free(tok_literal);
@@ -173,27 +174,28 @@ static char *tok_to_string(const ConfigToken *tok) {
   }
 }
 
-static void config_entry_print(const ConfigEntry *entry) {
-  char buf[256] = {'\0'};
-  strcat(buf, entry->key);
-  strcat(buf, " = ");
+static void config_entry_print(const ConfigEntry *entry, char *buf,
+                               size_t buf_capacity) {
+  strncat(buf, entry->key, buf_capacity);
+  strncat(buf, " = ", buf_capacity);
   switch (entry->val.type) {
   case CONFIG_ENTRY_STRING: {
-    strcat(buf, entry->val.var.entry_string);
+    char string_buf[128];
+    snprintf(string_buf, 128, "\"%s\"", entry->val.var.entry_string);
+    strncat(buf, string_buf, buf_capacity);
     break;
   }
   case CONFIG_ENTRY_BOOL: {
-    strcat(buf, entry->val.var.entry_bool ? "true" : "false");
+    strncat(buf, entry->val.var.entry_bool ? "true" : "false", buf_capacity);
     break;
   }
   case CONFIG_ENTRY_INT: {
     char int_buf[128];
-    sprintf(int_buf, "%d", entry->val.var.entry_int);
-    strcat(buf, int_buf);
+    snprintf(int_buf, 128, "%d", entry->val.var.entry_int);
+    strncat(buf, int_buf, buf_capacity);
     break;
   }
   }
-  puts(buf);
 }
 
 static void config_parse(Config *config, const ConfigToken *tokens) {
@@ -238,10 +240,6 @@ static void config_parse(Config *config, const ConfigToken *tokens) {
                                     : false}}};
         break;
       }
-      case TOKEN_EOL: {
-        parser.cur_token++;
-        break;
-      }
       default: {
         PANIC("Expected config value, received %s instead",
               tok_to_string(parser.cur_token));
@@ -256,30 +254,38 @@ static void config_parse(Config *config, const ConfigToken *tokens) {
       }
       break;
     }
+    case TOKEN_EOL: {
+      parser.cur_token++;
+      break;
+    }
     default: {
       PANIC("Expected IDENT at beginning of line, received %s instead",
             tok_to_string(parser.cur_token));
       break;
     }
     }
-    //config_entry_print(&entry);
+    // config_entry_print(&entry);
     array_add(config->entries, entry);
   }
 end:
 }
 
+static Config config_new(Allocator *allocator) {
+  return (Config){.entries = array_new_capacity(ConfigEntry, 32, allocator)};
+}
+
 static Config config_read(const char *config_file_content,
                           Allocator *allocator) {
-  Config config = {.entries = array_new_capacity(ConfigEntry, 32, allocator)};
+  Config config = config_new(allocator);
 
   ConfigToken *tokens = config_tokenize(config_file_content, allocator);
   config_parse(&config, tokens);
 
   array_free(tokens);
 
-  //for (int i = 0; i < array_len(config.entries); i++) {
-  //  config_entry_print(&config.entries[i]);
-  //}
+  // for (int i = 0; i < array_len(config.entries); i++) {
+  //   config_entry_print(&config.entries[i]);
+  // }
 
   // for (int i = 0; i < array_len(tokens); i++) {
   //   ConfigToken *tok = &tokens[i];
@@ -287,6 +293,14 @@ static Config config_read(const char *config_file_content,
   // }
 
   return config;
+}
+
+static void config_write(const Config *config, char *buf, size_t buf_capacity) {
+  for (int i = 0; i < array_len(config->entries); i++) {
+    ConfigEntry *entry = &config->entries[i];
+    config_entry_print(entry, buf, buf_capacity);
+    strncat(buf, "\n", buf_capacity);
+  }
 }
 
 static const char *config_get_string(const Config *config, const char *key,
@@ -329,11 +343,26 @@ static bool config_get_bool(const Config *config, const char *key,
 }
 
 static void config_add_string(const Config *config, const char *key,
-                              const char *val) {}
+                              const char *val) {
+  ConfigEntry entry = (ConfigEntry){
+      .key = key,
+      .val = {.type = CONFIG_ENTRY_STRING, .var = {.entry_string = val}}};
+  array_add(config->entries, entry);
+}
 
-static void config_add_int(const Config *config, const char *key, int val) {}
+static void config_add_int(const Config *config, const char *key, int val) {
+  ConfigEntry entry = (ConfigEntry){
+      .key = key,
+      .val = {.type = CONFIG_ENTRY_INT, .var = {.entry_int = val}}};
+  array_add(config->entries, entry);
+}
 
-static void config_add_bool(const Config *config, const char *key, bool val) {}
+static void config_add_bool(const Config *config, const char *key, bool val) {
+  ConfigEntry entry = (ConfigEntry){
+      .key = key,
+      .val = {.type = CONFIG_ENTRY_BOOL, .var = {.entry_bool = val}}};
+  array_add(config->entries, entry);
+}
 
 // -- APP CONFIG --
 
@@ -352,4 +381,13 @@ void app_config_read(AppConfig *config, const char *config_file) {
       config_get_bool(&raw_config, "show-hidden-dirs", true);
 }
 
-void app_config_write(const AppConfig *config, char *config_file) {}
+void app_config_write(const AppConfig *config, char *config_file_buf,
+                      size_t buf_capacity) {
+  Config raw_config = config_new(&HEAP_ALLOCATOR);
+
+  config_add_string(&raw_config, "text-editor", config->text_editor);
+  config_add_int(&raw_config, "max-rows", config->max_rows);
+  config_add_bool(&raw_config, "show-hidden-dirs", config->show_hidden_dirs);
+
+  config_write(&raw_config, config_file_buf, buf_capacity);
+}

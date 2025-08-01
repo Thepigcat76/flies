@@ -7,8 +7,6 @@
 
 #define NULLABLE
 
-#define TEXT_EDITOR "micro"
-
 typedef struct {
   int width;
   int height;
@@ -31,6 +29,10 @@ char *str_fmt_heap(const char *fmt, ...);
 char *str_cpy_heap(const char *str);
 
 void stack_trace_print(void);
+
+void dir_create(const char *path);
+
+bool file_exists(const char *path);
 
 #define ANSI_RED "\033[1;31m"
 #define ANSI_RESET "\033[0m"

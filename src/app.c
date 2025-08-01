@@ -21,18 +21,23 @@ void app_find_entries(App *app) {
 
   while ((entry = readdir(dp)) != NULL) {
     char *path = str_fmt("%s/%s", app->wd, entry->d_name);
+    if (!app->config.show_hidden_dirs && entry->d_name[0] == '.' &&
+        is_dir(path)) {
+      continue;
+    }
     array_add(app->dir_entries, dir_entry_new(path));
   }
 
   DirEntry *new_dir_entries = sort_dirs_alphabetic(app->dir_entries);
 
   array_clear(app->dir_entries);
+  if (new_dir_entries != NULL) {
+    for (int i = 0; i < array_len(new_dir_entries); i++) {
+      array_add(app->dir_entries, new_dir_entries[i]);
+    }
 
-  for (int i = 0; i < array_len(new_dir_entries); i++) {
-    array_add(app->dir_entries, new_dir_entries[i]);
+    array_free(new_dir_entries);
   }
-
-  array_free(new_dir_entries);
 
   closedir(dp);
 }
@@ -68,6 +73,55 @@ void app_open_dir(App *app, const DirEntry *entry) {
   app->dir_index = 0;
 }
 
+static AppConfig DEFAULT_CONFIG = {
+    .text_editor = "micro", .max_rows = 9, .show_hidden_dirs = true};
+
+static constexpr char FLIES_DIR[] = ".flies";
+static constexpr char FLIES_CONFIG_FILE[] = "flies.cfg";
+
+AppConfig app_config_load(void) {
+  const char *home_dir = getenv("HOME");
+  // /home/.../.flies/ + \0
+  size_t flies_dir_path_len = strlen(home_dir) + 1 + sizeof(FLIES_DIR) + 1 + 1;
+  char flies_dir_path[flies_dir_path_len];
+  snprintf(flies_dir_path, flies_dir_path_len, "%s/%s/", home_dir, FLIES_DIR);
+  char cfg_file_path[flies_dir_path_len + sizeof(FLIES_CONFIG_FILE)];
+  snprintf(cfg_file_path, flies_dir_path_len + sizeof(FLIES_CONFIG_FILE),
+           "%s/%s", flies_dir_path, FLIES_CONFIG_FILE);
+  // Check if .flies directory exists
+  if (!is_dir(flies_dir_path)) {
+    dir_create(flies_dir_path);
+  }
+
+  if (!file_exists(cfg_file_path)) {
+    char buf[128] = {0};
+    app_config_write(&DEFAULT_CONFIG, buf, 128);
+    FILE *file = fopen(cfg_file_path, "w");
+    if (file) {
+      fprintf(file, "%s", buf);
+      fclose(file);
+      printfn("Wrote %s to file %s", buf, cfg_file_path);
+    } else {
+      perror("fopen");
+      exit(1);
+    }
+  }
+
+  char *config_file = read_file_to_string(cfg_file_path);
+
+  AppConfig config;
+  app_config_read(&config, config_file);
+  printfn("Text editor: %s", config.text_editor);
+  printfn("Rows: %d", config.max_rows);
+  printfn("Show hidden dirs: %s", config.show_hidden_dirs ? "true" : "false");
+
+  return config;
+}
+
+static void app_reload(App *app) {
+  app->config = app_config_load();
+}
+
 void app_render(App *app) {
   size_t len = array_len(app->dir_entries);
   terminal_clear();
@@ -75,6 +129,10 @@ void app_render(App *app) {
 #ifdef DEBUG_BUILD
   printf("DEBUG INFO: %s\n", app->debug_message);
 #endif
+
+  if (len == 0) {
+    printfn("<EMPTY>");
+  }
 
   for (size_t i = 0; i < len; i++) {
     dir_entry_render(&app->dir_entries[i], app->dir_index == i);
@@ -97,6 +155,11 @@ void app_run_cmd(App *app) {
     app_paste_file(app, app->wd);
   } else if (str_eq(app->input, ":d")) {
     app_delete_file(app, &app->dir_entries[app->dir_index]);
+  } else if (str_eq(app->input, ":h")) {
+    app_set_debug_msg(app, "[NYI] Help command");
+  } else if (str_eq(app->input, ":r")) {
+    app_set_debug_msg(app, "Reloaded Config");
+    app_reload(app);
   } else if (strncmp(app->input, NF_CMD, nf_cmd_len - 1) == 0) {
     DirEntry entry =
         dir_entry_new(str_fmt("%s/%s", app->wd, app->input + nf_cmd_len));
@@ -261,7 +324,7 @@ void app_open_entry(App *app, const DirEntry *entry) {
   if (entry->type == DET_DIR) {
     app_open_dir(app, entry);
   } else {
-    system(str_fmt(TEXT_EDITOR " %s/%s", app->wd, entry->name));
+    system(str_fmt("%s %s/%s", app->config.text_editor, app->wd, entry->name));
     app->update_rendering = true;
   }
 }

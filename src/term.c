@@ -52,4 +52,6 @@ void terminal_handle_sigsegv(int sig) {
   terminal_disable_raw_mode();
 
   fprintf(stderr, "Encountered sigsegv\n");
+
+  exit(1);
 }

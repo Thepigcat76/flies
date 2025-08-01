@@ -123,3 +123,11 @@ char *str_fmt_heap(const char *fmt, ...) {
   strcpy(str, _internal_fmt_buf);
   return str;
 }
+
+void dir_create(const char *path) {
+  mkdir(path, 0777);
+}
+
+bool file_exists(const char *path) {
+  return access(path, F_OK) == 0;
+}
