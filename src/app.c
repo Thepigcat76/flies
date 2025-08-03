@@ -1,6 +1,7 @@
 #include "../include/app.h"
 #include "../include/array.h"
 #include "../include/term.h"
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -40,6 +41,9 @@ void app_find_entries(App *app) {
   }
 
   closedir(dp);
+
+  app->scroll_y_offset = 0;
+  app->scrollable = array_len(app->dir_entries) > app->config.max_rows;
 }
 
 void app_open_dir(App *app, const DirEntry *entry) {
@@ -48,7 +52,6 @@ void app_open_dir(App *app, const DirEntry *entry) {
     return;
   }
 
-  app->prev_len = array_len(app->dir_entries);
   array_clear(app->dir_entries);
 
   if (strcmp(entry->name, "..") == 0) {
@@ -118,11 +121,10 @@ AppConfig app_config_load(void) {
   return config;
 }
 
-static void app_reload(App *app) {
-  app->config = app_config_load();
-}
+static void app_reload(App *app) { app->config = app_config_load(); }
 
 void app_render(App *app) {
+  size_t start = 0;
   size_t len = array_len(app->dir_entries);
   terminal_clear();
 
@@ -134,15 +136,29 @@ void app_render(App *app) {
     printfn("<EMPTY>");
   }
 
-  for (size_t i = 0; i < len; i++) {
-    dir_entry_render(&app->dir_entries[i], app->dir_index == i);
+  //if (app->scrollable) {
+  //  start = app->scroll_y_offset;
+  //  len = fmin(app->scroll_y_offset + app->config.max_rows, len);
+  //}
+
+  for (size_t i = 0; i < app->config.max_rows; i++) {
+    if (app->scroll_y_offset + i < array_len(app->dir_entries)) {
+      dir_entry_render(&app->dir_entries[app->scroll_y_offset + i], app->dir_index == app->scroll_y_offset + i);
+    } else  {
+      printfn("-");
+    }
   }
+
+  if (app->scrollable) {
+    printfn("...");
+  }
+
   printf("%s> %s", app->wd, app->input);
   app->update_rendering = false;
 }
 
-constexpr char NF_CMD[] = ":nf";
-constexpr char ND_CMD[] = ":nd";
+static constexpr char NF_CMD[] = ":nf";
+static constexpr char ND_CMD[] = ":nd";
 
 void app_run_cmd(App *app) {
   size_t nf_cmd_len = sizeof(NF_CMD);
@@ -182,7 +198,9 @@ void app_set_debug_msg(App *app, const char *debug_message) {
 }
 
 void app_refresh(App *app) {
+  int scroll_y_offset = app->scroll_y_offset;
   app_find_entries(app);
+  app->scroll_y_offset = scroll_y_offset;
   app->update_rendering = true;
 }
 

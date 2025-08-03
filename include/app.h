@@ -12,14 +12,15 @@ typedef struct {
   DirEntry *prev_dirs;
   bool initial;
   bool update_rendering;
-  size_t dir_index;
-  size_t prev_len;
+  ssize_t dir_index;
   Dimensions terminal_dimensions;
   char input[256];
   char debug_message[256];
   bool cut;
   History action_history;
   AppConfig config;
+  int scroll_y_offset;
+  bool scrollable;
 } App;
 
 extern App APP;

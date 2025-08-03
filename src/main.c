@@ -27,7 +27,6 @@ int main(int argc, char **argv) {
   APP = (App){.dir_entries = array_new_capacity(DirEntry, 256, &HEAP_ALLOCATOR),
               .prev_dirs = array_new_capacity(DirEntry, 256, &HEAP_ALLOCATOR),
               .initial = true,
-              .prev_len = 0,
               .terminal_dimensions = {.width = w.ws_col, .height = w.ws_row},
               .input = "",
               .debug_message = "",
@@ -88,17 +87,20 @@ int main(int argc, char **argv) {
           char arrow = getchar();
           switch (arrow) {
           case 'A': {
-            if (app->dir_index > 0) {
-              app->dir_index = app->dir_index - 1;
+            app->dir_index = fmax(app->dir_index - 1, 0);
+            if (app->scrollable) {
+              app->scroll_y_offset = fmax(app->scroll_y_offset - 1, 0);
             }
-            app->prev_len = array_len(app->dir_entries);
             app->update_rendering = true;
             break;
           }
           case 'B': {
             app->dir_index =
                 fmin(array_len(app->dir_entries) - 1, app->dir_index + 1);
-            app->prev_len = array_len(app->dir_entries);
+            if (app->scrollable) {
+              app->scroll_y_offset =
+                  fmin(app->config.max_rows, app->scroll_y_offset + 1);
+            }
             app->update_rendering = true;
             break;
           }
