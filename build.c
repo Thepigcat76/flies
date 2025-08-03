@@ -1,7 +1,7 @@
 // To build the project, compile this file with a compiler of your choice and run the compiled executable.
 // The project also requires the gurd header, which can be found at <https://github.com/Thepigcat76/gurd/blob/main/gurd.h>
 
-#include "gurd.h"
+#include ".gurd/gurd.h"
 
 typedef enum {
   TARGET_LINUX,

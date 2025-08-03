@@ -181,6 +181,7 @@ void app_run_cmd(App *app) {
     app_set_debug_msg(app, "Reloaded Config");
     app_reload(app);
   } else if (strncmp(app->input, RN_CMD, rn_cmd_len - 1) == 0) {
+    app_set_debug_msg(app, "Renamed file");
     char new_name[512];
     char *path = app->input + rn_cmd_len;
     strcpy(new_name, app_hovered_entry(app)->path);
@@ -189,11 +190,13 @@ void app_run_cmd(App *app) {
     rename(app_hovered_entry(app)->path, new_name);
     app_refresh(app);
   } else if (strncmp(app->input, NF_CMD, nf_cmd_len - 1) == 0) {
+    app_set_debug_msg(app, "Created new file");
     DirEntry entry =
         dir_entry_new(str_fmt("%s/%s", app->wd, app->input + nf_cmd_len));
     app_new_file(app, entry);
     app_open_entry(app, &entry);
   } else if (strncmp(app->input, ND_CMD, nd_cmd_len - 1) == 0) {
+    app_set_debug_msg(app, "Created new directory");
     char *path = str_fmt("%s/%s", app->wd, app->input + nd_cmd_len);
     DirEntry entry = dir_entry_new(path);
     entry.type = DET_DIR;
