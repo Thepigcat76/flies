@@ -12,10 +12,11 @@ typedef struct {
   DirEntry *prev_dirs;
   bool initial;
   bool update_rendering;
+  // 0 to (app.config.max_rows - 1)
   ssize_t dir_index;
   Dimensions terminal_dimensions;
   char input[256];
-  char debug_message[256];
+  char info_msg[256];
   bool cut;
   History action_history;
   AppConfig config;
@@ -52,5 +53,7 @@ void app_new_file(App *app, DirEntry entry);
 void app_new_dir(App *app, DirEntry entry);
 
 void app_open_entry(App *app, const DirEntry *entry);
+
+DirEntry *app_hovered_entry(const App *app);
 
 AppConfig app_config_load(void);

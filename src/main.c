@@ -29,7 +29,7 @@ int main(int argc, char **argv) {
               .initial = true,
               .terminal_dimensions = {.width = w.ws_col, .height = w.ws_row},
               .input = "",
-              .debug_message = "",
+              .info_msg = "Started :3",
               .action_history = history_new(),
               .config = config};
 
@@ -87,21 +87,29 @@ int main(int argc, char **argv) {
           char arrow = getchar();
           switch (arrow) {
           case 'A': {
+            ssize_t old_index = app->dir_index;
             app->dir_index = fmax(app->dir_index - 1, 0);
-            if (app->scrollable) {
-              app->scroll_y_offset = fmax(app->scroll_y_offset - 1, 0);
+            if (old_index == 0) {
+              if (app->scrollable) {
+                app->scroll_y_offset = fmax(app->scroll_y_offset - 1, 0);
+              }
             }
             app->update_rendering = true;
             break;
           }
           case 'B': {
-            app->dir_index =
-                fmin(array_len(app->dir_entries) - 1, app->dir_index + 1);
-            if (app->scrollable) {
-              app->scroll_y_offset =
-                  fmin(app->config.max_rows, app->scroll_y_offset + 1);
+            if (app->dir_index < array_len(app->dir_entries) - 1) {
+              if (app->dir_index == app->config.max_rows - 1) {
+                if (app->scrollable && app->scroll_y_offset + app->config.max_rows - 1 !=
+                                           array_len(app->dir_entries) - 1) {
+                  app->scroll_y_offset = fmin(array_len(app->dir_entries) - 1,
+                                              app->scroll_y_offset + 1);
+                }
+              } else {
+                app->dir_index++;
+              }
+              app->update_rendering = true;
             }
-            app->update_rendering = true;
             break;
           }
           case 'C': {
@@ -132,7 +140,7 @@ int main(int argc, char **argv) {
       case '\n': {
         size_t len = strlen(app->input);
         if (len == 0) {
-          DirEntry *entry = &app->dir_entries[app->dir_index];
+          DirEntry *entry = app_hovered_entry(app);
           app_open_entry(app, entry);
         } else {
           app_run_cmd(app);
@@ -141,13 +149,13 @@ int main(int argc, char **argv) {
       }
       // CTRL + C
       case 3: {
-        const DirEntry *dir_entry = &app->dir_entries[app->dir_index];
+        const DirEntry *dir_entry = app_hovered_entry(app);
         app_copy_file(app, dir_entry);
         break;
       }
       // CTRL + D
       case 4: {
-        const DirEntry *dir_entry = &app->dir_entries[app->dir_index];
+        const DirEntry *dir_entry = app_hovered_entry(app);
         app_delete_file(app, dir_entry);
         break;
       }
@@ -159,7 +167,7 @@ int main(int argc, char **argv) {
       }
       // CTRL + X
       case 24: {
-        const DirEntry *dir_entry = &app->dir_entries[app->dir_index];
+        const DirEntry *dir_entry = app_hovered_entry(app);
         app->cut = true;
         app_copy_file(app, dir_entry);
         break;

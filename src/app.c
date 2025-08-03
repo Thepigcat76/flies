@@ -128,29 +128,31 @@ void app_render(App *app) {
   size_t len = array_len(app->dir_entries);
   terminal_clear();
 
-#ifdef DEBUG_BUILD
-  printf("DEBUG INFO: %s\n", app->debug_message);
-#endif
+  printfn("\xE2\x84\xB9\xEF\xB8\x8F  %s", app->info_msg);
 
   if (len == 0) {
     printfn("<EMPTY>");
   }
 
-  //if (app->scrollable) {
-  //  start = app->scroll_y_offset;
-  //  len = fmin(app->scroll_y_offset + app->config.max_rows, len);
-  //}
+  // if (app->scrollable) {
+  //   start = app->scroll_y_offset;
+  //   len = fmin(app->scroll_y_offset + app->config.max_rows, len);
+  // }
 
   for (size_t i = 0; i < app->config.max_rows; i++) {
     if (app->scroll_y_offset + i < array_len(app->dir_entries)) {
-      dir_entry_render(&app->dir_entries[app->scroll_y_offset + i], app->dir_index == app->scroll_y_offset + i);
-    } else  {
-      printfn("-");
+      dir_entry_render(&app->dir_entries[app->scroll_y_offset + i],
+                       app->dir_index == i);
+    } else {
+      printfn("");
     }
   }
 
-  if (app->scrollable) {
+  if (app->scrollable && app->scroll_y_offset + app->config.max_rows - 1 !=
+                             array_len(app->dir_entries) - 1) {
     printfn("...");
+  } else {
+    printfn("");
   }
 
   printf("%s> %s", app->wd, app->input);
@@ -159,23 +161,33 @@ void app_render(App *app) {
 
 static constexpr char NF_CMD[] = ":nf";
 static constexpr char ND_CMD[] = ":nd";
+static constexpr char RN_CMD[] = ":rn";
 
 void app_run_cmd(App *app) {
   size_t nf_cmd_len = sizeof(NF_CMD);
   size_t nd_cmd_len = sizeof(ND_CMD);
+  size_t rn_cmd_len = sizeof(RN_CMD);
   if (str_eq(app->input, ":q")) {
     app_exit(app);
   } else if (str_eq(app->input, ":c")) {
-    app_copy_file(app, &app->dir_entries[app->dir_index]);
+    app_copy_file(app, app_hovered_entry(app));
   } else if (str_eq(app->input, ":p")) {
     app_paste_file(app, app->wd);
   } else if (str_eq(app->input, ":d")) {
-    app_delete_file(app, &app->dir_entries[app->dir_index]);
+    app_delete_file(app, app_hovered_entry(app));
   } else if (str_eq(app->input, ":h")) {
     app_set_debug_msg(app, "[NYI] Help command");
   } else if (str_eq(app->input, ":r")) {
     app_set_debug_msg(app, "Reloaded Config");
     app_reload(app);
+  } else if (strncmp(app->input, RN_CMD, rn_cmd_len - 1) == 0) {
+    char new_name[512];
+    char *path = app->input + rn_cmd_len;
+    strcpy(new_name, app_hovered_entry(app)->path);
+    char *slash = strrchr(new_name, '/') + 1;
+    strcpy(slash, path);
+    rename(app_hovered_entry(app)->path, new_name);
+    app_refresh(app);
   } else if (strncmp(app->input, NF_CMD, nf_cmd_len - 1) == 0) {
     DirEntry entry =
         dir_entry_new(str_fmt("%s/%s", app->wd, app->input + nf_cmd_len));
@@ -194,7 +206,7 @@ void app_run_cmd(App *app) {
 }
 
 void app_set_debug_msg(App *app, const char *debug_message) {
-  strcpy(app->debug_message, debug_message);
+  strcpy(app->info_msg, debug_message);
 }
 
 void app_refresh(App *app) {
@@ -345,4 +357,8 @@ void app_open_entry(App *app, const DirEntry *entry) {
     system(str_fmt("%s %s/%s", app->config.text_editor, app->wd, entry->name));
     app->update_rendering = true;
   }
+}
+
+DirEntry *app_hovered_entry(const App *app) {
+  return &app->dir_entries[app->scroll_y_offset + app->dir_index];
 }
