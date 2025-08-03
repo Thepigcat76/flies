@@ -240,6 +240,22 @@ static void config_parse(Config *config, const ConfigToken *tokens) {
                                     : false}}};
         break;
       }
+      case TOKEN_IDENT: {
+        PANIC("Failed to parse config. Expected config value, received IDENT '%s' instead", parser.cur_token->var.tok_ident);
+        break;
+      }
+      case TOKEN_ASSIGN: {
+        PANIC("Failed to parse config. Expected config value, received ASSIGN instead");
+        break;
+      }
+      case TOKEN_EOL: {
+        PANIC("Failed to parse config. Expected config value, reached end of line");
+        break;
+      }
+      case TOKEN_EOF: {
+        PANIC("Failed to parse config. Expected config value, reached end of file");
+        break;
+      }
       default: {
         PANIC("Expected config value, received %s instead",
               tok_to_string(parser.cur_token));
