@@ -167,7 +167,7 @@ void app_init() {
               .prev_dirs = array_new_capacity(DirEntry, 256, &HEAP_ALLOCATOR),
               .initial = true,
               .input = "",
-              .info_msg = "Started in WebAssembly",
+              .info_msg = "Started :3",
               .action_history = history_new(),
               .config = config};
 

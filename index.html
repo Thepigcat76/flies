@@ -43,6 +43,8 @@
 </head>
 
 <body>
+  <div id="tutorial-info">Press Ctrl+X to close the tutorial</div>
+  <br />
   <div id="terminal"></div>
   <div id="input-line">
     <span id="input-prompt">$</span>
@@ -50,6 +52,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/ansi_up@5.0.0/ansi_up.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="./build/flies.js"></script>
   <script>
     window.addEventListener("load", () => {
@@ -66,50 +69,19 @@
         var displayFile = false;
         var inputUpdated = false;
 
+        fetch('./README-short.md') // adjust path as needed
+          .then(response => response.text())
+          .then(markdown => {
+            const html = marked.parse(markdown);
+            terminal.innerHTML = html;
+          });
+
         window.addEventListener("keydown", (e) => {
-          if (!displayFile) {
-            if (e.key === "ArrowUp") {
-              Module.ccall("app_up_down", null, ['number'], [-1]);
-            } else if (e.key === "ArrowDown") {
-              Module.ccall("app_up_down", null, ['number'], [1]);
-            } else if (e.key == "ArrowLeft") {
-              Module.ccall("app_left_right", null, ['number'], [1]);
-            } else if (e.key == "ArrowRight") {
-              Module.ccall("app_left_right", null, ['number'], [-1]);
-            } else if (e.key === "Enter") {
-              if (input.value.trim() !== "") {
-                Module.ccall("app_run_cmds", null, ['string'], [input.value]);
-                input.value = "";
-              } else {
-                const file = Module.ccall("app_open_hovered_entry", 'string', [], []);
-                console.log(file);
-                if (file !== "DIR") {
-                  terminal.innerHTML = '<span style="color: red;">Press Ctrl + X to exit</span>\n\n' + file;
-                  displayFile = true;
-                  return;
-                }
-              }
-            }
+          if (e.ctrlKey && e.key.toLowerCase() === 'x') {
+            updateTerminal();
+            document.getElementById('tutorial-info').remove();
+            terminalMain();
           }
-
-          if (e.ctrlKey) {
-            var c = e.key.toLowerCase();
-            if (c === "d" || c === 'c' || c === 'v' || c === 'z' || c == 'x') {
-              if (c == 'x') {
-                if (displayFile) {
-                  displayFile = false;
-                  updateTerminal();
-                  return;
-                }
-              }
-              e.preventDefault();
-              Module.ccall("app_ctrl_key", null, ['number'], [c.charCodeAt(0)])
-            } else {
-              return;
-            }
-          }
-
-          updateTerminal();
         });
 
         function updateTerminal() {
@@ -119,6 +91,54 @@
             terminal.innerHTML = html;
             terminal.scrollTop = terminal.scrollHeight;
           }
+        }
+
+        function terminalMain() {
+          window.addEventListener("keydown", (e) => {
+            if (!displayFile) {
+              if (e.key === "ArrowUp") {
+                Module.ccall("app_up_down", null, ['number'], [-1]);
+              } else if (e.key === "ArrowDown") {
+                Module.ccall("app_up_down", null, ['number'], [1]);
+              } else if (e.key == "ArrowLeft") {
+                Module.ccall("app_left_right", null, ['number'], [1]);
+              } else if (e.key == "ArrowRight") {
+                Module.ccall("app_left_right", null, ['number'], [-1]);
+              } else if (e.key === "Enter") {
+                if (input.value.trim() !== "") {
+                  Module.ccall("app_run_cmds", null, ['string'], [input.value]);
+                  input.value = "";
+                } else {
+                  const file = Module.ccall("app_open_hovered_entry", 'string', [], []);
+                  console.log(file);
+                  if (file !== "DIR") {
+                    terminal.innerHTML = '<span style="color: red;">Press Ctrl + X to exit</span>\n\n' + file;
+                    displayFile = true;
+                    return;
+                  }
+                }
+              }
+            }
+
+            if (e.ctrlKey) {
+              var c = e.key.toLowerCase();
+              if (c === "d" || c === 'c' || c === 'v' || c === 'z' || c == 'x') {
+                if (c == 'x') {
+                  if (displayFile) {
+                    displayFile = false;
+                    updateTerminal();
+                    return;
+                  }
+                }
+                e.preventDefault();
+                Module.ccall("app_ctrl_key", null, ['number'], [c.charCodeAt(0)])
+              } else {
+                return;
+              }
+            }
+
+            updateTerminal();
+          });
         }
       }
     })
