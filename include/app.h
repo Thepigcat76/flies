@@ -22,6 +22,8 @@ typedef struct {
   AppConfig config;
   int scroll_y_offset;
   bool scrollable;
+  Term term;
+  char cliboard[512];
 } App;
 
 extern App APP;
@@ -52,7 +54,9 @@ void app_new_file(App *app, DirEntry entry);
 
 void app_new_dir(App *app, DirEntry entry);
 
-void app_open_entry(App *app, const DirEntry *entry);
+char *app_open_entry(App *app, const DirEntry *entry);
+
+char *app_open_hovered_file(void);
 
 DirEntry *app_hovered_entry(const App *app);
 

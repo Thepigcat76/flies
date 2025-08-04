@@ -283,7 +283,6 @@ static void config_parse(Config *config, const ConfigToken *tokens) {
     // config_entry_print(&entry);
     array_add(config->entries, entry);
   }
-end:
 }
 
 static Config config_new(Allocator *allocator) {

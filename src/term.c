@@ -1,3 +1,4 @@
+#include "../include/app.h"
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,8 +12,10 @@ void terminal_cursor_up(size_t amount) { printf("\x1b[%zuA", amount); }
 void terminal_cursor_down(size_t amount) { printf("\x1b[%zuB", amount); }
 
 void terminal_clear() {
-  printf("\033c");
-  fflush(stdout);
+  Term *term = &APP.term;
+
+  term->buffer[0] = '\0';
+  term->cursor = 0;
 }
 
 void terminal_enable_raw_mode() {
@@ -54,4 +57,34 @@ void terminal_handle_sigsegv(int sig) {
   fprintf(stderr, "Encountered sigsegv\n");
 
   exit(1);
+}
+
+void term_printf(const char *format, ...) {
+  Term *term = &APP.term;
+
+  va_list args;
+  va_start(args, format);
+  int n = vsnprintf(&term->buffer[term->cursor],
+                    sizeof(term->buffer) - term->cursor, format, args);
+  va_end(args);
+  if (n > 0) {
+    term->cursor += n;
+  }
+}
+
+void term_printfn(const char *format, ...) {
+  Term *term = &APP.term;
+
+  va_list args;
+  va_start(args, format);
+  int n = vsnprintf(&term->buffer[term->cursor],
+                    sizeof(term->buffer) - term->cursor, format, args);
+  va_end(args);
+  if (n > 0) {
+    term->cursor += n;
+    if (term->cursor < sizeof(term->buffer) - 1) {
+      term->buffer[term->cursor++] = '\n';
+      term->buffer[term->cursor] = '\0';
+    }
+  }
 }

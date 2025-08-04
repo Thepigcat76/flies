@@ -1,11 +1,14 @@
-// To build the project, compile this file with a compiler of your choice and run the compiled executable.
-// The project also requires the gurd header, which can be found at <https://github.com/Thepigcat76/gurd/blob/main/gurd.h>
+// To build the project, compile this file with a compiler of your choice and
+// run the compiled executable. The project also requires the gurd header, which
+// can be found at <https://github.com/Thepigcat76/gurd/blob/main/gurd.h>
 
 #include ".gurd/gurd.h"
+#include <unistd.h>
 
 typedef enum {
   TARGET_LINUX,
   TARGET_WIN,
+  TARGET_WEB,
 } BuildTarget;
 
 typedef struct {
@@ -23,7 +26,7 @@ static BuildOptions OPTS = {.compiler = "clang",
                             .debug = true,
                             .release = false,
                             .std = "gnu23",
-                            .target = TARGET_LINUX,
+                            .target = TARGET_WEB,
                             .out_dir = "./build/",
                             .out_name = "flies"};
 
@@ -36,16 +39,29 @@ int main(int argc, char **argv) {
   }
 
   char *compiler = build_compiler(OPTS.compiler, OPTS.target);
-  char *files = collect_src_files("./src/");
+  char *files = collect_src_files("../flies/src/");
   char *libraries = link_libs(OPTS.libraries);
   char *flags = build_flags(&OPTS);
   char *out_name = build_name(OPTS.out_name, OPTS.target);
 
-  make_dir(OPTS.out_dir);
-  int code = compile("%s %s %s %s -o %s%s", OPTS.compiler, files, libraries, flags, OPTS.out_dir, out_name);
-  if (code != 0) {
-    fprintf(stderr, "Failed to compile the program\n");
-    return code;
+  if (OPTS.target == TARGET_WEB) {
+    make_dir(OPTS.out_dir);
+    chdir("/home/thepigcat/coding/c/emsdk/");
+    compile("emcc %s -o ../flies/%s/%s.js"
+            " -sEXPORTED_RUNTIME_METHODS=ccall,cwrap,FS"
+            " -sEXPORTED_FUNCTIONS=_app_init,_app_input,_app_render_frame,_app_run_cmds,_app_up_down,_app_open_hovered_entry,_app_ctrl_key,_app_left_right,_app_open_hovered_file"
+            " -sALLOW_MEMORY_GROWTH=1"
+            " -sENVIRONMENT=web"
+            " -sASYNCIFY",
+            files, OPTS.out_dir, out_name);
+  } else {
+    make_dir(OPTS.out_dir);
+    int code = compile("%s %s %s %s -o %s%s", OPTS.compiler, files, libraries,
+                       flags, OPTS.out_dir, out_name);
+    if (code != 0) {
+      fprintf(stderr, "Failed to compile the program\n");
+      return code;
+    }
   }
 
   if (argc >= 2) {
@@ -54,7 +70,8 @@ int main(int argc, char **argv) {
     } else if (STR_CMP_OR(argv[1], "d", "dbg")) {
       dbg(OPTS.out_dir, out_name, OPTS.debug);
       return 0;
-    } else if (STR_CMP_OR(argv[1], "-r", "--release")) {} else {
+    } else if (STR_CMP_OR(argv[1], "-r", "--release")) {
+    } else {
       fprintf(stderr, "[Error]: Invalid first arg: %s\n", argv[1]);
       return 1;
     }

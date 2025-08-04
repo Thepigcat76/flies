@@ -1,6 +1,13 @@
 #pragma once
 
 #include <signal.h>
+#include <stdarg.h>
+#include <stdio.h>
+
+typedef struct {
+  char buffer[8192];
+  size_t cursor;
+} Term;
 
 extern volatile sig_atomic_t terminal_resized;
 
@@ -19,3 +26,7 @@ void terminal_clear_last_lines(size_t n);
 void terminal_handle_sigwinch(int sig);
 
 void terminal_handle_sigsegv(int sig);
+
+void term_printf(const char *format, ...);
+
+void term_printfn(const char *format, ...);

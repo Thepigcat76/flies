@@ -79,8 +79,8 @@ void app_open_dir(App *app, const DirEntry *entry) {
 static AppConfig DEFAULT_CONFIG = {
     .text_editor = "micro", .max_rows = 9, .show_hidden_dirs = true};
 
-static constexpr char FLIES_DIR[] = ".flies";
-static constexpr char FLIES_CONFIG_FILE[] = "flies.cfg";
+static const char FLIES_DIR[] = ".flies";
+static const char FLIES_CONFIG_FILE[] = "flies.cfg";
 
 AppConfig app_config_load(void) {
   const char *home_dir = getenv("HOME");
@@ -128,7 +128,7 @@ void app_render(App *app) {
   size_t len = array_len(app->dir_entries);
   terminal_clear();
 
-  printfn("\xE2\x84\xB9\xEF\xB8\x8F  %s", app->info_msg);
+  term_printfn("ℹ️ %s", app->info_msg);
 
   if (len == 0) {
     printfn("<EMPTY>");
@@ -144,37 +144,39 @@ void app_render(App *app) {
       dir_entry_render(&app->dir_entries[app->scroll_y_offset + i],
                        app->dir_index == i);
     } else {
-      printfn("");
+      term_printfn("");
     }
   }
 
   if (app->scrollable && app->scroll_y_offset + app->config.max_rows - 1 !=
                              array_len(app->dir_entries) - 1) {
-    printfn("...");
+    term_printfn("...");
   } else {
-    printfn("");
+    term_printfn("");
   }
 
-  printf("%s> %s", app->wd, app->input);
+  term_printfn("%s> %s", app->wd, app->input);
   app->update_rendering = false;
 }
 
-static constexpr char NF_CMD[] = ":nf";
-static constexpr char ND_CMD[] = ":nd";
-static constexpr char RN_CMD[] = ":rn";
+static const char NF_CMD[] = ":nf";
+static const char ND_CMD[] = ":nd";
+static const char RN_CMD[] = ":rn";
 
 void app_run_cmd(App *app) {
   size_t nf_cmd_len = sizeof(NF_CMD);
   size_t nd_cmd_len = sizeof(ND_CMD);
   size_t rn_cmd_len = sizeof(RN_CMD);
   if (str_eq(app->input, ":q")) {
-    app_exit(app);
+    //app_exit(app);
   } else if (str_eq(app->input, ":c")) {
     app_copy_file(app, app_hovered_entry(app));
   } else if (str_eq(app->input, ":p")) {
     app_paste_file(app, app->wd);
   } else if (str_eq(app->input, ":d")) {
     app_delete_file(app, app_hovered_entry(app));
+    app_set_debug_msg(app, "Deleted file/directory");
+    app_refresh(app);
   } else if (str_eq(app->input, ":h")) {
     app_set_debug_msg(app, "[NYI] Help command");
   } else if (str_eq(app->input, ":r")) {
@@ -220,61 +222,57 @@ void app_refresh(App *app) {
 }
 
 void app_copy_file(App *app, const DirEntry *entry) {
-  FILE *pipe = popen("wl-copy --type text/uri-list", "w");
-  if (pipe) {
-    fputs(str_fmt("file://%s/%s", app->wd, entry->name), pipe);
-    pclose(pipe);
-
-    app_set_debug_msg(app, app->cut ? "Cut file" : "Copied file");
-  } else {
-    perror("wl-copy");
-  }
+  strcpy(app->cliboard, str_fmt("file://%s/%s", app->wd, entry->name));
+  app_set_debug_msg(app, app->cut ? "Cut file" : "Copied file");
+  app_refresh(app);
+  // FILE *pipe = popen("wl-copy --type text/uri-list", "w");
+  // if (pipe) {
+  //   fputs(str_fmt("file://%s/%s", app->wd, entry->name), pipe);
+  //   pclose(pipe);
+  //
+  //  app_set_debug_msg(app, app->cut ? "Cut file" : "Copied file");
+  //} else {
+  //  perror("wl-copy");
+  //}
 }
 
 void app_paste_file(App *app, const char *dir) {
-  FILE *pipe = popen("wl-paste --type text/uri-list", "r");
-  if (pipe) {
-    // TODO: Use file_read_to_string helper function
-    char buf[1024];
-    size_t len = fread(buf, sizeof(char), 1024, pipe);
-    buf[len] = '\0';
-    pclose(pipe);
+  // TODO: Use file_read_to_string helper function
+  char *buf = app->cliboard;
 
-    char *newline = strchr(buf, '\n');
-    if (newline)
-      *newline = '\0';
+  char *newline = strchr(buf, '\n');
+  if (newline)
+    *newline = '\0';
 
-    char *prefix = "file://";
-    if (strncmp(buf, prefix, strlen(prefix)) != 0) {
-      app_set_debug_msg(app, "Clipboard content is not a file");
-      return;
+  char *prefix = "file://";
+  if (strncmp(buf, prefix, strlen(prefix)) != 0) {
+    app_set_debug_msg(app, "Clipboard content is not a file");
+    return;
+  }
+
+  char *pasted_file_path = buf + strlen(prefix) - 1;
+  char *pasted_file_content = read_file_to_string(pasted_file_path);
+
+  if (pasted_file_content != NULL) {
+    char *file_name = strrchr(pasted_file_path, '/') + 1;
+    FILE *pasted_file = fopen(str_fmt("%s/%s", dir, file_name), "w");
+    fprintf(pasted_file, "%s", pasted_file_content);
+    fclose(pasted_file);
+    free(pasted_file_content);
+    app_set_debug_msg(app, "Pasted file");
+
+    if (app->cut) {
+      remove(pasted_file_path);
+      app->cut = false;
+      history_push(&app->action_history,
+                   action_move(str_cpy_heap(pasted_file_path),
+                               str_fmt_heap("%s/%s", dir, file_name)));
+    } else {
+      history_push(&app->action_history,
+                   action_create(str_fmt_heap("%s/%s", dir, file_name)));
     }
-    char *pasted_file_path = buf + strlen(prefix) - 1;
-    char *pasted_file_content = read_file_to_string(pasted_file_path);
 
-    if (pasted_file_content != NULL) {
-      char *file_name = strrchr(pasted_file_path, '/') + 1;
-      FILE *pasted_file = fopen(str_fmt("%s/%s", dir, file_name), "w");
-      fprintf(pasted_file, "%s", pasted_file_content);
-      fclose(pasted_file);
-      free(pasted_file_content);
-      app_set_debug_msg(app, "Pasted file");
-
-      if (app->cut) {
-        remove(pasted_file_path);
-        app->cut = false;
-        history_push(&app->action_history,
-                     action_move(str_cpy_heap(pasted_file_path),
-                                 str_fmt_heap("%s/%s", dir, file_name)));
-      } else {
-        history_push(&app->action_history,
-                     action_create(str_fmt_heap("%s/%s", dir, file_name)));
-      }
-
-      app_refresh(app);
-    }
-  } else {
-    perror("wl-paste");
+    app_refresh(app);
   }
 }
 
@@ -353,12 +351,14 @@ void app_exit(App *app) {
   exit(0);
 }
 
-void app_open_entry(App *app, const DirEntry *entry) {
+char *app_open_entry(App *app, const DirEntry *entry) {
   if (entry->type == DET_DIR) {
     app_open_dir(app, entry);
+    return "DIR";
   } else {
-    system(str_fmt("%s %s/%s", app->config.text_editor, app->wd, entry->name));
+    //system(str_fmt("%s %s/%s", app->config.text_editor, app->wd, entry->name));
     app->update_rendering = true;
+    return app_open_hovered_file();
   }
 }
 
