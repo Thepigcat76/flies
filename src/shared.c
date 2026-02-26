@@ -1,4 +1,3 @@
-#include "../include/array.h"
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>

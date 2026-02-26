@@ -1,7 +1,6 @@
 #include "../include/app.h"
-#include "../include/array.h"
+#include "lilc/array.h"
 #include "../include/term.h"
-#include <math.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>

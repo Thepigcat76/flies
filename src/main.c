@@ -1,5 +1,5 @@
 #include "../include/app.h"
-#include "../include/array.h"
+#include "lilc/array.h"
 #include "../include/config.h"
 #include "../include/shared.h"
 #include "../include/term.h"

@@ -1,5 +1,5 @@
-#include "../include/alloc.h"
-#include "../include/array.h"
+#include "lilc/alloc.h"
+#include "lilc/array.h"
 #include "../include/shared.h"
 #include <stddef.h>
 #include <stdlib.h>

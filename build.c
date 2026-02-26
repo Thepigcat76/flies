@@ -23,6 +23,7 @@ static BuildOptions OPTS = {.compiler = "clang",
                             .debug = true,
                             .release = false,
                             .std = "gnu23",
+                            .libraries = ARRAY("lilc"),
                             .target = TARGET_LINUX,
                             .out_dir = "./build/",
                             .out_name = "flies"};

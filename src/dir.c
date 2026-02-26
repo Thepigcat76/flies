@@ -1,5 +1,5 @@
 #include "../include/dir.h"
-#include "../include/array.h"
+#include "lilc/array.h"
 #include <stdlib.h>
 #include <string.h>
 

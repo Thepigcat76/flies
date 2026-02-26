@@ -1,5 +1,5 @@
 #include "../include/history.h"
-#include "../include/array.h"
+#include "lilc/array.h"
 
 History history_new() {
   return (History){.actions = array_new_capacity(Action, 128, &HEAP_ALLOCATOR)};
