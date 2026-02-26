@@ -285,7 +285,6 @@ void app_delete_file(App *app, const DirEntry *entry) {
 
 void app_undo(App *app) {
   Action action = history_pop(&app->action_history);
-  char *action_name;
   switch (action.type) {
   case ACTION_MOVE: {
     const char *old_path = action.var.move_action.old_path;
