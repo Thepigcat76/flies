@@ -19,7 +19,6 @@ typedef struct {
   char info_msg[256];
   bool cut;
   History action_history;
-  AppConfig config;
   int scroll_y_offset;
   bool scrollable;
 } App;

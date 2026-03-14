@@ -5,6 +5,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <ncurses.h>
 
 static char _internal_fmt_buf[8192];
 
@@ -19,9 +20,9 @@ char *str_fmt(const char *fmt, ...) {
 void printfn(const char *fmt, ...) {
   va_list args;
   va_start(args, fmt);
-  vprintf(fmt, args);
+  vw_printw(stdscr, fmt, args);
   va_end(args);
-  puts("");
+  printw("\n");
 }
 
 bool is_dir(const char *path) {
@@ -87,7 +88,7 @@ char *read_file_to_string(const char *filename) {
 }
 
 void stack_trace_print(void) {
-#if defined (TARGET_LINUX) && defined (DEBUG_BUILD)
+#if defined(TARGET_LINUX) && defined(DEBUG_BUILD)
   void *buffer[100];
   int nptrs = backtrace(buffer, 100);
   char **symbols = backtrace_symbols(buffer, nptrs);
@@ -117,16 +118,12 @@ char *str_fmt_heap(const char *fmt, ...) {
   va_start(args, fmt);
   vsnprintf(_internal_fmt_buf, 4096, fmt, args);
   va_end(args);
-  
+
   char *str = malloc(strlen(_internal_fmt_buf));
   strcpy(str, _internal_fmt_buf);
   return str;
 }
 
-void dir_create(const char *path) {
-  mkdir(path, 0777);
-}
+void dir_create(const char *path) { mkdir(path, 0777); }
 
-bool file_exists(const char *path) {
-  return access(path, F_OK) == 0;
-}
+bool file_exists(const char *path) { return access(path, F_OK) == 0; }

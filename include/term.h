@@ -1,8 +1,13 @@
 #pragma once
 
 #include <signal.h>
+#include <termios.h>
+
+#define TERMINAL_ROWS 10
 
 extern volatile sig_atomic_t terminal_resized;
+
+void terminal_init();
 
 static void terminal_cursor_up(size_t amount);
 

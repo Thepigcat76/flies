@@ -23,7 +23,7 @@ static BuildOptions OPTS = {.compiler = "clang",
                             .debug = true,
                             .release = false,
                             .std = "gnu23",
-                            .libraries = ARRAY("lilc"),
+                            .libraries = ARRAY("lilc", "ncurses"),
                             .target = TARGET_LINUX,
                             .out_dir = "./build/",
                             .out_name = "flies"};
@@ -38,6 +38,12 @@ int main(int argc, char **argv) {
 
   char *compiler = build_compiler(OPTS.compiler, OPTS.target);
   char *files = collect_src_files("./src/");
+  char files_tmp[strlen(_internal_src_files_buf)];
+  strcpy(files_tmp, files);
+  _internal_src_files_buf[0] = '\0';
+  char *files_new = collect_src_files("./vendor/");
+  strcat(files_new, files_tmp);
+  printf("FILES: %s\n", files_new);
   char *libraries = link_libs(OPTS.libraries);
   char *flags = build_flags(&OPTS);
   char *out_name = build_name(OPTS.out_name, OPTS.target);

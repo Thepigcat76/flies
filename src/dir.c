@@ -2,6 +2,7 @@
 #include "lilc/array.h"
 #include <stdlib.h>
 #include <string.h>
+#include <ncurses.h>
 
 DirEntry PREV_DIR = {.name = "..", .type = DET_FILE, .ext = ""};
 
@@ -18,9 +19,15 @@ DirEntry dir_entry_new(const char *path) {
 }
 
 void dir_entry_render(const DirEntry *dir_entry, bool selected) {
-  printfn("%s%s %s%s", selected ? "\e[47m" : "",
+  if (selected) {
+    attron(A_STANDOUT);
+  }
+  printw("%s %s\n",
           dir_entry->type == DET_DIR ? "\xF0\x9F\x93\x81" : "\xF0\x9F\x93\x84",
-          dir_entry->name, selected ? "\e[0m" : "");
+          dir_entry->name);
+  if (selected) {
+    attroff(A_STANDOUT);
+  }
 }
 
 static int cmp_dir_names(const void *a, const void *b) {

@@ -1,11 +1,50 @@
 #include "../include/app.h"
-#include "lilc/array.h"
 #include "../include/term.h"
+#include "lilc/array.h"
+#include <errno.h>
+#include <lilc/alloc.h>
+#include <lilc/eq.h>
+#include <lilc/hash.h>
+#include <lilc/hashmap.h>
+#include <lilc/str.h>
+#include <ncurses.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+
+static constexpr char FLIES_DIR[] = ".flies";
+static constexpr char FLIES_CONFIG_FILE[] = "flies.toml";
 
 App APP;
+
+static char *global_config_path = NULL;
+
+static AppConfig app_config_get_global() {
+  if (global_config_path == NULL) {
+    const char *home_dir = getenv("HOME");
+    // /home/.../.flies/ + \0
+    size_t flies_dir_path_len =
+        strlen(home_dir) + 1 + sizeof(FLIES_DIR) + 1 + 1;
+    char flies_dir_path[flies_dir_path_len];
+    snprintf(flies_dir_path, flies_dir_path_len, "%s/%s/", home_dir, FLIES_DIR);
+    char *cfg_file_path =
+        HEAP_ALLOCATOR.alloc(flies_dir_path_len + sizeof(FLIES_CONFIG_FILE));
+    snprintf(cfg_file_path, flies_dir_path_len + sizeof(FLIES_CONFIG_FILE),
+             "%s/%s", flies_dir_path, FLIES_CONFIG_FILE);
+    // Check if .flies directory exists
+    if (!is_dir(flies_dir_path)) {
+      dir_create(flies_dir_path);
+    }
+    global_config_path = cfg_file_path;
+  }
+
+  Hashmap(char **, char **) interps = hashmap_new(
+      char **, char **, &HEAP_ALLOCATOR, str_ptrv_hash, str_ptrv_eq, NULL);
+  return app_config_parse(global_config_path, &interps);
+}
 
 void app_find_entries(App *app) {
   array_clear(app->dir_entries);
@@ -21,7 +60,7 @@ void app_find_entries(App *app) {
 
   while ((entry = readdir(dp)) != NULL) {
     char *path = str_fmt("%s/%s", app->wd, entry->d_name);
-    if (!app->config.show_hidden_dirs && entry->d_name[0] == '.' &&
+    if (!app_config_get_global().show_hidden_dirs && entry->d_name[0] == '.' &&
         is_dir(path)) {
       continue;
     }
@@ -42,7 +81,7 @@ void app_find_entries(App *app) {
   closedir(dp);
 
   app->scroll_y_offset = 0;
-  app->scrollable = array_len(app->dir_entries) > app->config.max_rows;
+  app->scrollable = array_len(app->dir_entries) > TERMINAL_ROWS;
 }
 
 void app_open_dir(App *app, const DirEntry *entry) {
@@ -75,11 +114,7 @@ void app_open_dir(App *app, const DirEntry *entry) {
   app->dir_index = 0;
 }
 
-static AppConfig DEFAULT_CONFIG = {
-    .text_editor = "micro", .max_rows = 9, .show_hidden_dirs = true};
-
-static constexpr char FLIES_DIR[] = ".flies";
-static constexpr char FLIES_CONFIG_FILE[] = "flies.cfg";
+static AppConfig DEFAULT_CONFIG = {.show_hidden_dirs = true};
 
 AppConfig app_config_load(void) {
   const char *home_dir = getenv("HOME");
@@ -113,14 +148,14 @@ AppConfig app_config_load(void) {
 
   AppConfig config;
   app_config_read(&config, config_file);
-  printfn("Text editor: %s", config.text_editor);
-  printfn("Rows: %d", config.max_rows);
+  // printfn("Text editor: %s", config.text_editor);
+  // printfn("Rows: %d", TERMINAL_ROWS);
   printfn("Show hidden dirs: %s", config.show_hidden_dirs ? "true" : "false");
 
   return config;
 }
 
-static void app_reload(App *app) { app->config = app_config_load(); }
+// static void app_reload(App *app) { app->config = app_config_load(); }
 
 void app_render(App *app) {
   size_t start = 0;
@@ -138,23 +173,25 @@ void app_render(App *app) {
   //   len = fmin(app->scroll_y_offset + app->config.max_rows, len);
   // }
 
-  for (size_t i = 0; i < app->config.max_rows; i++) {
+  for (size_t i = 0; i < TERMINAL_ROWS; i++) {
     if (app->scroll_y_offset + i < array_len(app->dir_entries)) {
       dir_entry_render(&app->dir_entries[app->scroll_y_offset + i],
                        app->dir_index == i);
     } else {
-      printfn("");
+      // printfn("");
     }
   }
 
-  if (app->scrollable && app->scroll_y_offset + app->config.max_rows - 1 !=
+  refresh();
+
+  if (app->scrollable && app->scroll_y_offset + TERMINAL_ROWS - 1 !=
                              array_len(app->dir_entries) - 1) {
     printfn("...");
   } else {
-    printfn("");
+    // printfn("");
   }
 
-  printf("%s> %s", app->wd, app->input);
+  printw("%s> %s", app->wd, app->input);
   app->update_rendering = false;
 }
 
@@ -176,9 +213,6 @@ void app_run_cmd(App *app) {
     app_delete_file(app, app_hovered_entry(app));
   } else if (str_eq(app->input, ":h")) {
     app_set_debug_msg(app, "[NYI] Help command");
-  } else if (str_eq(app->input, ":r")) {
-    app_set_debug_msg(app, "Reloaded Config");
-    app_reload(app);
   } else if (strncmp(app->input, RN_CMD, rn_cmd_len - 1) == 0) {
     char new_name[512];
     char *path = app->input + rn_cmd_len;
@@ -348,11 +382,61 @@ void app_exit(App *app) {
   exit(0);
 }
 
+static int run_editor(const char *path) {
+  // Save ncurses program state (modes, colors, etc.)
+  def_prog_mode();
+  endwin(); // leave curses, restore normal terminal settings
+  fflush(stdout);
+
+  pid_t pid = fork();
+  if (pid == 0) {
+    // Child: replace process image with micro.
+    // - Use execlp so PATH is searched.
+    execlp("micro", "micro", path, (char *)NULL);
+    _exit(127); // exec failed
+  } else if (pid < 0) {
+    // fork failed; restore curses before returning
+    reset_prog_mode();
+    refresh();
+    return -1;
+  }
+
+  int status = 0;
+  while (waitpid(pid, &status, 0) < 0) {
+    if (errno == EINTR)
+      continue;
+    break;
+  }
+
+  // Restore ncurses program state
+  reset_prog_mode();
+  refresh(); // redraw stdscr contents (you likely want a full redraw)
+  // Often helpful:
+  // clear(); refresh();
+
+  return status;
+}
+
 void app_open_entry(App *app, const DirEntry *entry) {
   if (entry->type == DET_DIR) {
     app_open_dir(app, entry);
   } else {
-    system(str_fmt("%s %s/%s", app->config.text_editor, app->wd, entry->name));
+    // system(str_fmt("%s %s/%s", app->config.text_editor, app->wd,
+    // entry->name));
+    // run_editor(str_fmt("%s/%s", app->wd, entry->name));
+
+    app_set_debug_msg(app, str_fmt("Tried opening: %s", entry->name));
+    dyn_string_t path = {0};
+    dyn_string_init(&path);
+    dyn_string_printf(&path, "%s/%s", app->wd, entry->name);
+    const char *val = app_config_open_file(path.string, global_config_path);
+    if (val != NULL) {
+      app_set_debug_msg(app, val);
+      terminal_clear();
+      system(val);
+      terminal_enable_raw_mode();
+    }
+
     app->update_rendering = true;
   }
 }

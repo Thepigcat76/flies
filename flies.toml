@@ -1,0 +1,4 @@
+text-editor = "micro"
+show-hidden-dirs = true
+
+open-file = { "\\.png[[:space:]]*$" = "firefox ${filepath}", default = "${text-editor} file://${filepath}/" }
